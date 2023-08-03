@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="uft-8">
+<title>HTMLで複素数グラフ</title>
+
+</head>
+<body>
+<div>
+    <button id="enter">この係数と係数を追加する</button>
+    <button id="delete">Delete</button>
+    <label>係数<input type="number" id="keisu" value="0"></label>
+    <label>指数<input type="number" id="sisu" value="0"></label>
+    <p id="total"> f(z)= </p>
+</div>
+
+<canvas id="canvas" width="1000" height="540"></canvas>
+<script>
+    const mx =1000;
+    const my =540;
+    var mX;
+    var mY;
+    var funcA =new Array(0);//AはArrayのA
+    var zmax =0;
+//アロー関数の原型
+window.onload  =function(){
+    document.body.addEventListener('mousemove',function(event){
+        {
+            mX = event.offsetX-mx/2.0;
+            mY = event.offsetY-my/2.0;
+        }
+    });
+    }
+
+    var size = 1;
+window.onmousewheel = function(){
+    size += event.wheelDelta /1000.0;
+    size = Math.min(1,size);
+    size = Math.max(0.1,size);
+}
+const canvas = document.getElementById('canvas');
+
+const ctx = canvas.getContext('2d');
+
+ctx.fillStyle = 'white';
+ctx.strokeRect(0,0,mx,my);//x座標 y座標 x長さ y長さ　枠のみ
+//関数に使う変数
+var xyzp//元々の場所
+var viewxy//変換後の場所
+time =0;
+//グラフに使う変数
+class ReIm
+    {
+        constructor(re,im,zr)
+        {
+            this.re = 0;
+            this.im = 0;
+            this.zr =0;
+        }
+    }
+class Func
+{
+   constructor(co,ex)//係数,指数
+   {
+    this.co = 1;
+    this.ex = 1;
+   } 
+}
+//関数の項数を増やして記述する
+document.getElementById('enter').addEventListener('click',CreateCurve);
+function CreateCurve()
+{
+    var co = document.getElementById('keisu');
+    var ex = document.getElementById('sisu');
+    var func = new Func();
+    func.co = co.value;
+    func.ex = ex.value;
+    zmax =0;//これだけだと不十分
+    funcA.push(func);
+    const sum =  document.getElementById('total');
+    sum.textContent += '+'+co.value +'Z^'+ex.value;
+    curve();
+}
+//deleteボタンを押したとき
+document.getElementById('delete').addEventListener('click', () =>
+{
+    funcA = new Array(0);
+    zmax =0;
+    document.getElementById('keisu').value = 0;
+    document.getElementById('sisu').value = 0;;
+    const sum =  document.getElementById('total');
+    sum.textContent = 'f(z)=';
+    CreateCurve();
+});
+    
+function curve()//基本1回ダケ呼び出す
+    {//放物線の面
+        //配列を2重ループで初期化する場合
+        xyzp = new Array(21);//要素数21の配列を作成
+        for(var i = 0; i < 21; i++)
+        {
+            xyzp[i] = new Array(21); //21列の各要素を21行にする(21行21列)
+            for(var j = 0; j < 21; j++)
+            {
+                //xyzp[i][j] = new Array(3); //21行21列の各要素をVector3にする
+                xyzp[i][j] = new ReIm();
+            }
+        }
+        
+        for(j = 0;j < funcA.length;j++)
+        {
+            var zscale = 1000/Math.pow(10,ExMax());
+            //console.log('ExMaxは'+ExMax());
+            for(t=0;t<21;t++)//ここでｔの数を入れることでxz座標を返すモノを作る(tは0以上の整数)
+            {
+                for(u=0;u<21;u++)//ここでｔの数を入れることでxz座標を返すモノを作る(tは0以上の整数)
+                {
+                    //var nt = t-10;
+                    //var nu = u-10;
+                    xyzp[t][u].re = t-10;//x
+                    xyzp[t][u].im = u-10;//y
+
+                    for(i=0; i<=funcA[j].ex; i++)
+                    {   
+                        var curNum = i;
+                        if(curNum %4 ==0)
+                        {
+                            var coe = com(funcA[j].ex,curNum);//合ってる
+                            xyzp[t][u].zr += coe* Math.pow(xyzp[t][u].re, funcA[j].ex -curNum) * Math.pow(xyzp[t][u].im, curNum) * funcA[j].co *zscale;
+                        }
+                        else if(curNum%4 ==2)
+                        {   
+                            var coe2 = com(funcA[j].ex,curNum);//合ってる
+                            xyzp[t][u].zr -= coe2*Math.pow(xyzp[t][u].re, funcA[j].ex -curNum) * Math.pow(xyzp[t][u].im, curNum) * funcA[j].co *zscale;
+                        }
+                        zmax = Math.max(zmax , xyzp[t][u].zr);
+                    }
+
+                    xyzp[t][u].re *= 100;//x
+                    xyzp[t][u].im *= 100;//y
+                }
+            }
+        }
+        if(j != funcA.length)
+        {
+            zmax =0;
+        }
+        console.log('f(z)の最大値は'+zmax/1000+ '×10^'+ExMax())//console.log(ExMax() -funcA[j].ex);//後ろは合ってる
+    }
+function ExMax()
+    {
+        var max = 0;
+        for(i = 0;i<funcA.length;i++)
+        {
+           max = Math.max(max,funcA[i].ex); 
+        }
+        return max;
+    }
+function com(m,n)
+    {
+        var com  =1;
+        for(i= 1; i<=n; i++)
+        {
+            com = com* (m-n+i)/i
+        }
+        return com;
+    }
+function trans()
+    {   
+        //xyzp =  curve();//21の配列の各要素が2次元ベクトル
+        var newxyPos = new Array(21);//表示用の行列をつくる
+        for(var i = 0; i < 21; i++)
+        {
+            newxyPos[i] = new Array(21); //21列の各要素を21行にする(21行21列)
+            for(var j = 0; j < 21; j++)
+            {
+                newxyPos[i][j] = new Array(2); //21行21列の各要素をVector2にする
+            }
+        }
+        //表示用の行列に値を入れていく
+        var smoothx =1/360.0;
+        var smoothy =1/360.0;
+            for(t=0;t<21;t++)//21回まわす
+            {
+                for(u=0;u<21;u++)//ここでｔの数を入れることでxz座標を返すモノを作る(tは0以上の整数)
+                {
+                    newxyPos[t][u][0] =size*(Math.cos(mX* smoothx)* xyzp[t][u].re+ Math.sin(mX* smoothx)* xyzp[t][u].im); //size* Math.sqrt(3)*0.5 *(xyzp[t][u][0]+ xyzp[t][u][1]);
+                    newxyPos[t][u][1] =size*(-Math.sin(mY* smoothy)* xyzp[t][u].im+ Math.cos(mY* smoothy)* xyzp[t][u].zr);//size* 0.5* (xyzp[t][u][0]- xyzp[t][u][1])+ xyzp[t][u][2];
+                }
+            }
+        
+        return(newxyPos);
+    }
+function draw()
+    {   
+        viewxy = trans();
+        ctx.beginPath();
+        for(u=0;u<21;u++)//x方向に線を引く　
+        {
+            ctx.strokeStyle = 'rgb(' + Math.floor(255 - 12 * t) + ', 100, 0)';
+            ctx.moveTo(viewxy[0][u][0]+mx/2.0,-viewxy[0][u][1]+my/2.0);
+            for(t=1;t<21;t++)//他と違って1から始まる
+            {
+                ctx.lineTo(viewxy[t][u][0]+mx/2.0,-viewxy[t][u][1]+my/2.0);
+            }
+            ctx.stroke();
+        }
+
+        for(t=0;t<21;t++)//y方向に線を引く　
+        {
+            ctx.strokeStyle = 'rgb(' + Math.floor(255 -  12* t) + ', 0, 0)';
+            ctx.moveTo(viewxy[t][0][0]+mx/2.0,-viewxy[t][0][1]+my/2.0);
+            for(u=1;u<21;u++)//他と違って1から始まる
+            {
+                ctx.lineTo(viewxy[t][u][0]+mx/2.0,-viewxy[t][u][1]+my/2.0);
+            }
+            ctx.stroke();
+        }
+        //alert(viewxy);//2個要素があればいい 
+    }
+function erase()// 点の消去
+    {
+        ctx.fillRect(0,0,mx,my);//x座標 y座標 x長さ y長さ　白で塗りつぶす
+        ctx.strokeRect(0,0,mx,my);//x座標 y座標 x長さ y長さ　枠のみ
+    }
+
+function update() 
+    {
+        erase();
+		draw();
+		requestAnimationFrame(update);//引数の関数に引数がないなら、その関数は次のフレームまで待ってから実行される
+        time += 0; 
+	}
+//最初に動く場所
+    CreateCurve()
+    draw();
+    update();
+
+
+</script>
+</body>
+</html>
+
+//動作確認済み  
